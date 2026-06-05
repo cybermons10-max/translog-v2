@@ -1,11 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { statutBadgeClass, statutLabel } from '@/lib/utils'
 import { STATUT_ORDER, STATUT_CONFIG } from '@/types'
 import type { DossierStatut } from '@/types'
-import { Search, Package, MapPin, Calendar, Check } from 'lucide-react'
+import { Search, MapPin, Calendar, Check } from 'lucide-react'
 
 interface DossierResult {
   reference: string
@@ -34,18 +33,16 @@ export default function ClientPage() {
     setResult(null)
     setNotFound(false)
 
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('dossiers')
-      .select('reference, client_nom, type_colis, poids_kg, ville_depart, ville_arrivee, pays_arrivee, statut, created_at, updated_at, tenant:tenant_id(name)')
-      .eq('reference', reference.trim().toUpperCase())
-      .maybeSingle()
-
+    // API route serveur avec service_role — bypass RLS sans exposer la clé anon
+    const res = await fetch(`/api/client/track?ref=${encodeURIComponent(reference.trim().toUpperCase())}`)
     setLoading(false)
-    if (error || !data) {
+
+    if (res.status === 404) {
       setNotFound(true)
+    } else if (res.ok) {
+      setResult(await res.json())
     } else {
-      setResult(data as unknown as DossierResult)
+      setNotFound(true)
     }
   }
 
@@ -53,14 +50,12 @@ export default function ClientPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f0f2f5' }}>
-      {/* Header */}
       <header style={{ backgroundColor: '#1e3a5f' }} className="px-6 py-4 shadow-md">
         <h1 className="text-white font-bold text-xl">Suivi de colis</h1>
-        <p className="text-white/60 text-sm mt-0.5">Entrez votre référence de dossier pour suivre votre envoi</p>
+        <p className="text-white/60 text-sm mt-0.5">Entrez votre référence pour suivre votre envoi</p>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-6">
-        {/* Search */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
@@ -80,7 +75,6 @@ export default function ClientPage() {
           </button>
         </form>
 
-        {/* Not found */}
         {notFound && (
           <div className="bg-white rounded-xl shadow-sm border border-red-100 p-6 text-center">
             <p className="text-red-600 font-medium">Référence introuvable</p>
@@ -88,10 +82,8 @@ export default function ClientPage() {
           </div>
         )}
 
-        {/* Result */}
         {result && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Header */}
             <div style={{ backgroundColor: '#1e3a5f' }} className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -102,13 +94,12 @@ export default function ClientPage() {
                   {statutLabel(result.statut)}
                 </span>
               </div>
-              <p className="text-white/60 text-xs mt-1">{result.tenant?.name}</p>
+              <p className="text-white/50 text-xs mt-1">{result.tenant?.name}</p>
             </div>
 
-            {/* Timeline */}
             {result.statut !== 'annule' && (
-              <div className="px-6 py-5 border-b border-gray-100">
-                <div className="flex items-center gap-0">
+              <div className="px-6 py-5 border-b border-gray-100 overflow-x-auto">
+                <div className="flex items-center gap-0 min-w-max">
                   {STATUT_ORDER.map((s, i) => {
                     const done = i < currentIdx
                     const active = i === currentIdx
@@ -116,12 +107,14 @@ export default function ClientPage() {
                       <div key={s} className="flex items-center">
                         <div className="flex flex-col items-center gap-1.5">
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${
-                            done ? 'bg-[#1e3a5f] border-[#1e3a5f]' :
-                            active ? 'bg-white border-[#1e3a5f] ring-3 ring-[#1e3a5f]/20' :
-                            'bg-white border-gray-200'
+                            done   ? 'bg-[#1e3a5f] border-[#1e3a5f]' :
+                            active ? 'bg-white border-[#1e3a5f] ring-2 ring-[#1e3a5f]/20' :
+                                     'bg-white border-gray-200'
                           }`}>
-                            {done ? <Check size={12} className="text-white" strokeWidth={3} /> :
-                              <div className={`w-2 h-2 rounded-full ${active ? 'bg-[#1e3a5f]' : 'bg-gray-200'}`} />}
+                            {done
+                              ? <Check size={12} className="text-white" strokeWidth={3} />
+                              : <div className={`w-2 h-2 rounded-full ${active ? 'bg-[#1e3a5f]' : 'bg-gray-200'}`} />
+                            }
                           </div>
                           <span className={`text-xs whitespace-nowrap ${done || active ? 'text-[#1e3a5f] font-medium' : 'text-gray-400'}`}>
                             {STATUT_CONFIG[s].label}
@@ -137,7 +130,6 @@ export default function ClientPage() {
               </div>
             )}
 
-            {/* Details */}
             <div className="p-6 grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Destinataire</p>

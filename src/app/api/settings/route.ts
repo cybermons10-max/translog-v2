@@ -1,10 +1,12 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { isTenantAdmin } from '@/lib/auth-guards'
 
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+  if (!isTenantAdmin(user)) return NextResponse.json({ error: 'Réservé à l\'administrateur' }, { status: 403 })
 
   const tenantId = user.app_metadata?.tenant_id
   if (!tenantId) return NextResponse.json({ error: 'Tenant manquant' }, { status: 403 })
@@ -26,7 +28,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ success: true })
 }
 
-// Crée le bucket Supabase Storage si absent
+// Crée le bucket Supabase Storage si absent — accessible à tout membre (utilisé au montage)
 export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

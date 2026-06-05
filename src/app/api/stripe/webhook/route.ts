@@ -123,14 +123,18 @@ async function syncTenantMetadata(
   if (!profiles) return
 
   await Promise.all(
-    profiles.map((p: { id: string }) =>
-      admin.auth.admin.updateUserById(p.id, {
+    profiles.map(async (p: { id: string }) => {
+      // Fetch existing metadata first to preserve role, tenant_id, and other fields
+      const { data: { user } } = await admin.auth.admin.getUserById(p.id)
+      const existing = user?.app_metadata ?? {}
+      return admin.auth.admin.updateUserById(p.id, {
         app_metadata: {
+          ...existing,
           subscription_status: status,
           plan,
           ...(trialEndsAt ? { trial_ends_at: trialEndsAt } : {}),
         },
       })
-    )
+    })
   )
 }
