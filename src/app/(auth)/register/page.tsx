@@ -39,43 +39,60 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
-    // 1. Créer le compte
-    const res = await fetch('/api/onboarding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, company_name: companyName, pays_desservis: selectedPays }),
-    })
-    const data = await res.json()
-    if (!res.ok || !data.success) {
-      setError(data.error ?? 'Erreur lors de la création du compte')
+    try {
+      // 1. Créer le compte
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, company_name: companyName, pays_desservis: selectedPays }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setError(data.error ?? 'Erreur lors de la création du compte')
+        setStep('info')
+        return
+      }
+
+      // 2. Se connecter
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError('Compte créé, erreur de connexion. Connectez-vous manuellement.')
+        return
+      }
+
+      // 3. Rediriger vers Stripe Checkout
+      const checkoutRes = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selectedPlan }),
+      })
+
+      // Toujours parser comme JSON — la route garantit maintenant une réponse JSON valide
+      let checkoutData: { url?: string; error?: string } = {}
+      try {
+        checkoutData = await checkoutRes.json()
+      } catch {
+        // La route a renvoyé une réponse non-JSON (cas extrême) → fallback dashboard
+        window.location.href = '/dashboard'
+        return
+      }
+
+      if (!checkoutRes.ok || checkoutData.error || !checkoutData.url) {
+        // Stripe indisponible ou erreur — l'essai gratuit est actif, on continue
+        console.warn('[Register] Stripe checkout error:', checkoutData.error)
+        window.location.href = '/dashboard'
+        return
+      }
+
+      window.location.href = checkoutData.url
+    } catch (err: any) {
+      console.error('[Register] Unexpected error:', err)
+      setError('Erreur inattendue. Votre compte a été créé — connectez-vous via la page de connexion.')
+    } finally {
+      // Garantit que le bouton n'est jamais bloqué, quelle que soit l'issue
       setLoading(false)
-      setStep('info')
-      return
     }
-
-    // 2. Se connecter
-    const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) {
-      setError('Compte créé, erreur de connexion. Connectez-vous manuellement.')
-      setLoading(false)
-      return
-    }
-
-    // 3. Rediriger vers Stripe Checkout
-    const checkoutRes = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: selectedPlan }),
-    })
-    const { url, error: stripeError } = await checkoutRes.json()
-    if (stripeError || !url) {
-      // Stripe indisponible → aller au dashboard directement (trial actif)
-      window.location.href = '/dashboard'
-      return
-    }
-
-    window.location.href = url
   }
 
   return (
