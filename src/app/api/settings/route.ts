@@ -12,7 +12,7 @@ export async function PATCH(request: Request) {
   if (!tenantId) return NextResponse.json({ error: 'Tenant manquant' }, { status: 403 })
 
   const body = await request.json()
-  const allowed = ['primary_color', 'logo_url', 'pays_desservis']
+  const allowed = ['primary_color', 'logo_url', 'pays_desservis', 'sms_enabled']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
@@ -23,7 +23,11 @@ export async function PATCH(request: Request) {
   }
 
   const { error } = await supabase.from('tenants').update(updates).eq('id', tenantId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Colonne sms_enabled absente = migration sprint5 non exécutée → ignorer silencieusement
+    if (error.message.includes('sms_enabled')) return NextResponse.json({ success: true, warning: 'sms_migration_pending' })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

@@ -2,9 +2,19 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { Tenant } from '@/types'
 import { TenantActions } from '@/components/superadmin/TenantActions'
-import { PLANS } from '@/lib/stripe'
+import { SuperadminCharts } from '@/components/superadmin/SuperadminCharts'
 
 const PLAN_PRICE: Record<string, number> = { starter: 69, pro: 99, business: 149 }
+
+function monthLabel(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+}
+
+function monthKey(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 
 function statusBadge(status: string) {
   const cfg: Record<string, string> = {
@@ -35,12 +45,42 @@ export default async function SuperadminPage() {
     dossierCountByTenant[d.tenant_id] = (dossierCountByTenant[d.tenant_id] ?? 0) + 1
   }
 
-  const activeCount = tenantList.filter(t => t.subscription_status === 'active').length
-  const trialCount  = tenantList.filter(t => t.subscription_status === 'trial').length
+  const activeCount    = tenantList.filter(t => t.subscription_status === 'active').length
+  const trialCount     = tenantList.filter(t => t.subscription_status === 'trial').length
   const suspendedCount = tenantList.filter(t => ['suspended', 'cancelled'].includes(t.subscription_status)).length
   const mrr = tenantList
     .filter(t => t.subscription_status === 'active')
     .reduce((sum, t) => sum + (PLAN_PRICE[t.plan] ?? 0), 0)
+  const churnRate = tenantList.length > 0 ? (suspendedCount / tenantList.length * 100) : 0
+
+  // MRR approximatif sur 6 mois (tenants actifs créés avant ou pendant chaque mois)
+  const mrrData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(); d.setMonth(d.getMonth() - (5 - i))
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString()
+    const activeThen = tenantList.filter(t =>
+      t.created_at <= monthEnd && t.subscription_status === 'active'
+    )
+    return { month: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }), mrr: activeThen.reduce((s, t) => s + (PLAN_PRICE[t.plan] ?? 0), 0) }
+  })
+
+  // Nouveaux tenants et churned par mois (6 mois)
+  const tenantsDataMap: Record<string, { new: number; churned: number }> = {}
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth() - i)
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    tenantsDataMap[k] = { new: 0, churned: 0 }
+  }
+  for (const t of tenantList) {
+    const k = monthKey(t.created_at)
+    if (tenantsDataMap[k]) tenantsDataMap[k].new++
+    if (['suspended', 'cancelled'].includes(t.subscription_status) && t.updated_at) {
+      const ck = monthKey(t.updated_at)
+      if (tenantsDataMap[ck]) tenantsDataMap[ck].churned++
+    }
+  }
+  const tenantsData = Object.entries(tenantsDataMap).map(([k, v]) => ({
+    month: new Date(k).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }), ...v,
+  }))
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -67,6 +107,9 @@ export default async function SuperadminPage() {
             </div>
           ))}
         </div>
+
+        {/* Charts analytics */}
+        <SuperadminCharts mrrData={mrrData} tenantsData={tenantsData} churnRate={churnRate} />
 
         {/* Tenants table */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">

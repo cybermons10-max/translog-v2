@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendStatutUpdated } from '@/lib/brevo'
+import { sendStatutUpdated, sendSmsStatutUpdated } from '@/lib/brevo'
+import { notifyTenant } from '@/lib/push'
+import { statutLabel } from '@/lib/utils'
+
+export const runtime = 'nodejs'
 
 const VALID_STATUTS = ['recu', 'confirme', 'en_transit', 'arrive', 'livre', 'annule']
 
@@ -24,21 +28,49 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .update({ statut })
     .eq('id', id)
     .eq('tenant_id', tenantId)
-    .select('reference, client_email, client_nom')
+    .select('id, reference, client_email, client_phone, client_nom')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Email au client si statut significatif (pas 'recu')
-  if (dossier?.client_email && statut !== 'recu') {
-    const { data: tenant } = await supabase.from('tenants').select('name').eq('id', tenantId).single()
-    sendStatutUpdated({
-      clientEmail: dossier.client_email,
-      clientNom: dossier.client_nom,
-      tenantName: tenant?.name ?? 'TransLog',
-      reference: dossier.reference,
-      newStatut: statut,
-      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
+  if (statut !== 'recu') {
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('name, plan, sms_enabled')
+      .eq('id', tenantId)
+      .single()
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app'
+    const smsEnabled = tenant?.sms_enabled === true && ['pro', 'business'].includes(tenant?.plan ?? '')
+
+    // Email client
+    if (dossier?.client_email) {
+      sendStatutUpdated({
+        clientEmail: dossier.client_email,
+        clientNom: dossier.client_nom,
+        tenantName: tenant?.name ?? 'TransLog',
+        reference: dossier.reference,
+        newStatut: statut,
+        appUrl,
+      })
+    }
+
+    // SMS client — Pro/Business + sms_enabled
+    if (smsEnabled && dossier?.client_phone) {
+      sendSmsStatutUpdated({
+        clientPhone: dossier.client_phone,
+        clientNom: dossier.client_nom,
+        reference: dossier.reference,
+        newStatut: statut,
+      })
+    }
+
+    // Push notification tenant_admin
+    notifyTenant(tenantId, {
+      title: `Dossier ${dossier?.reference}`,
+      body: `Statut mis à jour : ${statutLabel(statut)}`,
+      url: `${appUrl}/dashboard/dossiers/${id}`,
+      tag: `statut-${id}`,
     })
   }
 

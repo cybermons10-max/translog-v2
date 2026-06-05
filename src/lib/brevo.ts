@@ -1,6 +1,16 @@
 import { BrevoClient } from '@getbrevo/brevo'
 import { statutLabel } from './utils'
 
+// ── Helpers communs ──────────────────────────────────────────────────────────
+
+/** Nettoie un numéro de téléphone en format Brevo (sans espaces ni +) */
+function formatPhoneForSms(phone: string): string {
+  const cleaned = phone.replace(/[\s\-().+]/g, '')
+  // Numéro français 0XXXXXXXXX → 33XXXXXXXXX
+  if (cleaned.startsWith('0') && cleaned.length === 10) return `33${cleaned.slice(1)}`
+  return cleaned
+}
+
 function getClient() {
   const key = process.env.BREVO_API_KEY
   if (!key) return null
@@ -162,4 +172,57 @@ export async function sendWelcomeTransporteur(opts: {
       </p>
     `),
   })
+}
+
+// ── SMS transactionnels ───────────────────────────────────────────────────────
+
+async function sendSms(phone: string, content: string) {
+  const client = getClient()
+  if (!client) return
+  const sender = process.env.BREVO_SMS_SENDER ?? 'TransLog'
+  try {
+    await client.transactionalSms.sendAsyncTransactionalSms({
+      recipient: formatPhoneForSms(phone),
+      sender,
+      content,
+      type: 'transactional',
+    })
+  } catch (err) {
+    console.error('[Brevo SMS]', err)
+  }
+}
+
+export async function sendSmsNouveauDossier(opts: {
+  clientPhone: string
+  clientNom: string
+  reference: string
+  villeArrivee: string
+  paysArrivee: string
+  appUrl: string
+}) {
+  await sendSms(
+    opts.clientPhone,
+    `Bonjour ${opts.clientNom}, votre colis ${opts.reference} vers ${opts.villeArrivee} (${opts.paysArrivee}) a ete enregistre. Suivi : ${opts.appUrl}/client`
+  )
+}
+
+export async function sendSmsStatutUpdated(opts: {
+  clientPhone: string
+  clientNom: string
+  reference: string
+  newStatut: string
+}) {
+  const msgs: Record<string, string> = {
+    confirme:   'confirme et pris en charge',
+    en_transit: 'en transit',
+    arrive:     'arrive a destination',
+    livre:      'livre ! Merci de votre confiance',
+    annule:     'annule',
+  }
+  const msg = msgs[opts.newStatut]
+  if (!msg) return
+  await sendSms(
+    opts.clientPhone,
+    `Bonjour ${opts.clientNom}, votre colis ${opts.reference} est ${msg}.`
+  )
 }

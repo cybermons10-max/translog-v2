@@ -16,10 +16,14 @@ export function SettingsForm({ tenant }: Props) {
 
   const [color, setColor] = useState(tenant.primary_color ?? '#1e3a5f')
   const [logoUrl, setLogoUrl] = useState(tenant.logo_url ?? '')
+  const [smsEnabled, setSmsEnabled] = useState((tenant as any).sms_enabled ?? false)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+
+  const plan = (tenant as any).plan ?? 'starter'
+  const smsAvailable = ['pro', 'business'].includes(plan)
 
   // Initialiser le bucket au montage
   useEffect(() => {
@@ -64,7 +68,7 @@ export function SettingsForm({ tenant }: Props) {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ primary_color: color, logo_url: logoUrl || null }),
+      body: JSON.stringify({ primary_color: color, logo_url: logoUrl || null, sms_enabled: smsEnabled }),
     })
 
     setSaving(false)
@@ -153,6 +157,29 @@ export function SettingsForm({ tenant }: Props) {
               title={c}
             />
           ))}
+        </div>
+      </div>
+
+      {/* SMS toggle */}
+      <div className="space-y-2 pt-1">
+        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          SMS transactionnels
+          {!smsAvailable && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Plan Pro/Business requis</span>
+          )}
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => smsAvailable && setSmsEnabled((v: boolean) => !v)}
+            disabled={!smsAvailable}
+            className={`w-11 h-6 rounded-full transition-colors relative ${smsEnabled && smsAvailable ? 'bg-[#1e3a5f]' : 'bg-gray-200'} disabled:opacity-40`}
+          >
+            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${smsEnabled && smsAvailable ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+          <span className="text-sm text-gray-600">
+            {smsEnabled && smsAvailable ? 'Activé — SMS envoyés au client à chaque événement' : 'Désactivé'}
+          </span>
         </div>
       </div>
 

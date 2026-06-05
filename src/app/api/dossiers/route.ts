@@ -1,10 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateReference, calculateTarif } from '@/lib/utils'
-import { sendDossierCreated } from '@/lib/brevo'
+import { sendDossierCreated, sendSmsNouveauDossier } from '@/lib/brevo'
+import { notifyTenant } from '@/lib/push'
 import { TYPE_COLIS_OPTIONS } from '@/types'
 import type { Tarif } from '@/types'
 import { isTenantMember } from '@/lib/auth-guards'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -24,22 +27,15 @@ export async function POST(request: Request) {
 
   const [{ count }, { data: tenant }, { data: tarifs }] = await Promise.all([
     supabase.from('dossiers').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-    supabase.from('tenants').select('name').eq('id', tenantId).single(),
+    supabase.from('tenants').select('name, plan, sms_enabled').eq('id', tenantId).single(),
     supabase.from('tarifs').select('*').eq('tenant_id', tenantId).eq('actif', true),
   ])
 
-  // Calcul tarifaire côté serveur — les montants du navigateur sont ignorés
   const poids = body.poids_kg ? parseFloat(body.poids_kg) : null
   const prix = poids && tarifs
-    ? calculateTarif(
-        tarifs as Tarif[],
-        body.type_colis ?? 'moyen',
-        poids,
-        body.pays_arrivee ?? 'Maroc'
-      )
+    ? calculateTarif(tarifs as Tarif[], body.type_colis ?? 'moyen', poids, body.pays_arrivee ?? 'Maroc')
     : null
 
-  // Génération de référence avec retry sur collision (race condition)
   let data = null
   const baseCount = count ?? 0
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -66,21 +62,18 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (!result.error) {
-      data = result.data
-      break
-    }
+    if (!result.error) { data = result.data; break }
     if (result.error.code !== '23505') {
       return NextResponse.json({ error: result.error.message }, { status: 500 })
     }
-    // 23505 = unique_violation → collision de référence, on réessaie
   }
 
-  if (!data) {
-    return NextResponse.json({ error: 'Impossible de générer une référence unique. Réessayez.' }, { status: 409 })
-  }
+  if (!data) return NextResponse.json({ error: 'Impossible de générer une référence unique. Réessayez.' }, { status: 409 })
 
-  // Email au client (fire-and-forget)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app'
+  const smsEnabled = tenant?.sms_enabled === true && ['pro', 'business'].includes(tenant?.plan ?? '')
+
+  // Email client (fire-and-forget)
   if (data.client_email) {
     const typeLabel = TYPE_COLIS_OPTIONS.find(o => o.value === data.type_colis)?.label ?? data.type_colis
     sendDossierCreated({
@@ -92,9 +85,29 @@ export async function POST(request: Request) {
       villeDepart: data.ville_depart,
       villeArrivee: data.ville_arrivee,
       paysArrivee: data.pays_arrivee,
-      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
+      appUrl,
     })
   }
+
+  // SMS client — Plan Pro/Business + sms_enabled (fire-and-forget)
+  if (smsEnabled) {
+    sendSmsNouveauDossier({
+      clientPhone: data.client_phone,
+      clientNom: data.client_nom,
+      reference: data.reference,
+      villeArrivee: data.ville_arrivee,
+      paysArrivee: data.pays_arrivee,
+      appUrl,
+    })
+  }
+
+  // Push notification tenant_admin (fire-and-forget)
+  notifyTenant(tenantId, {
+    title: 'Nouveau dossier',
+    body: `${data.reference} — ${data.client_nom} → ${data.ville_arrivee}`,
+    url: `${appUrl}/dashboard/dossiers/${data.id}`,
+    tag: 'nouveau-dossier',
+  })
 
   return NextResponse.json(data, { status: 201 })
 }

@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FolderOpen, Tag, Settings, LogOut, CreditCard } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Tag, Settings, LogOut, CreditCard, BarChart3 } from 'lucide-react'
+import { PwaSetup } from '@/components/dashboard/PwaSetup'
 
 interface Props {
   children: React.ReactNode
@@ -12,11 +13,12 @@ interface Props {
 }
 
 const NAV = [
-  { href: '/dashboard',          label: 'Tableau de bord', icon: LayoutDashboard },
-  { href: '/dashboard/dossiers', label: 'Dossiers',        icon: FolderOpen },
-  { href: '/dashboard/tarifs',   label: 'Tarifs',          icon: Tag },
-  { href: '/dashboard/billing',  label: 'Abonnement',      icon: CreditCard },
-  { href: '/dashboard/settings', label: 'Paramètres',      icon: Settings },
+  { href: '/dashboard',           label: 'Tableau de bord', icon: LayoutDashboard },
+  { href: '/dashboard/dossiers',  label: 'Dossiers',        icon: FolderOpen },
+  { href: '/dashboard/analytics', label: 'Analytics',       icon: BarChart3 },
+  { href: '/dashboard/tarifs',    label: 'Tarifs',          icon: Tag },
+  { href: '/dashboard/billing',   label: 'Abonnement',      icon: CreditCard },
+  { href: '/dashboard/settings',  label: 'Paramètres',      icon: Settings },
 ]
 
 export function DashboardLayout({ children, tenantName, logoUrl, primaryColor }: Props) {
@@ -35,15 +37,18 @@ export function DashboardLayout({ children, tenantName, logoUrl, primaryColor }:
           )}
           <span className="text-white font-bold text-lg tracking-wide">{tenantName}</span>
         </div>
-        <form action="/api/auth/signout" method="POST">
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors"
-          >
-            <LogOut size={15} />
-            Déconnexion
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <PwaSetup />
+          <form action="/api/auth/signout" method="POST">
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors"
+            >
+              <LogOut size={15} />
+              Déconnexion
+            </button>
+          </form>
+        </div>
       </header>
 
       {/* Nav */}
