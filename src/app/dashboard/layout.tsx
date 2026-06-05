@@ -10,10 +10,18 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const tenantId = user.app_metadata?.tenant_id
   if (!tenantId) redirect('/login')
 
-  const { data: tenant } = await supabase.from('tenants').select('name, logo_url').eq('id', tenantId).single()
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name, logo_url, primary_color')
+    .eq('id', tenantId)
+    .single()
 
   return (
-    <DashboardLayout tenantName={tenant?.name ?? 'Dashboard'} logoUrl={tenant?.logo_url}>
+    <DashboardLayout
+      tenantName={tenant?.name ?? 'Dashboard'}
+      logoUrl={tenant?.logo_url}
+      primaryColor={tenant?.primary_color}
+    >
       {children}
     </DashboardLayout>
   )

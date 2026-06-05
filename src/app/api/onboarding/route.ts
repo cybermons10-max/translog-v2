@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { generateSlug } from '@/lib/utils'
 import { NextResponse } from 'next/server'
+import { sendWelcomeTransporteur } from '@/lib/brevo'
 
 export async function POST(request: Request) {
   try {
@@ -72,6 +73,15 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('tenants').delete().eq('id', tenant.id)
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
+
+    // Email de bienvenue (fire-and-forget)
+    sendWelcomeTransporteur({
+      adminEmail: email,
+      adminNom: company_name,
+      tenantName: company_name,
+      plan: 'starter',
+      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
+    })
 
     return NextResponse.json({ success: true })
   } catch (err) {

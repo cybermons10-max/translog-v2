@@ -8,7 +8,7 @@ interface Props {
   children: React.ReactNode
   tenantName: string
   logoUrl?: string | null
-  subscriptionStatus?: string
+  primaryColor?: string | null
 }
 
 const NAV = [
@@ -19,16 +19,19 @@ const NAV = [
   { href: '/dashboard/settings', label: 'Paramètres',      icon: Settings },
 ]
 
-export function DashboardLayout({ children, tenantName, logoUrl, subscriptionStatus }: Props) {
+export function DashboardLayout({ children, tenantName, logoUrl, primaryColor }: Props) {
   const pathname = usePathname()
+  const brand = primaryColor ?? '#1e3a5f'
+  // Nav is slightly darker — darken by mixing with black at 15%
+  const navBg = brand
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f0f2f5' }}>
       {/* Header */}
-      <header style={{ backgroundColor: '#1e3a5f' }} className="px-6 py-3 flex items-center justify-between shadow-md">
+      <header style={{ backgroundColor: brand }} className="px-6 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           {logoUrl && (
-            <img src={logoUrl} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
+            <img src={logoUrl} alt="Logo" className="h-9 w-9 rounded-lg object-cover bg-white/10" />
           )}
           <span className="text-white font-bold text-lg tracking-wide">{tenantName}</span>
         </div>
@@ -44,7 +47,7 @@ export function DashboardLayout({ children, tenantName, logoUrl, subscriptionSta
       </header>
 
       {/* Nav */}
-      <nav style={{ backgroundColor: '#162d4a' }} className="px-6 flex gap-1 shadow">
+      <nav style={{ backgroundColor: brand, filter: 'brightness(0.88)' }} className="px-6 flex gap-1 shadow">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
           return (

@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateReference } from '@/lib/utils'
+import { sendDossierCreated } from '@/lib/brevo'
+import { TYPE_COLIS_OPTIONS } from '@/types'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -47,5 +49,22 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Email au client (fire-and-forget, n'impacte pas la réponse)
+  if (data.client_email) {
+    const typeLabel = TYPE_COLIS_OPTIONS.find(o => o.value === data.type_colis)?.label ?? data.type_colis
+    sendDossierCreated({
+      clientEmail: data.client_email,
+      clientNom: data.client_nom,
+      tenantName: tenant?.name ?? 'TransLog',
+      reference: data.reference,
+      typeColisLabel: typeLabel,
+      villeDepart: data.ville_depart,
+      villeArrivee: data.ville_arrivee,
+      paysArrivee: data.pays_arrivee,
+      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
+    })
+  }
+
   return NextResponse.json(data, { status: 201 })
 }
