@@ -3,7 +3,7 @@ import { Check, Package, FileText, MapPin, BarChart3, Shield, Zap, ArrowRight } 
 
 const PLANS = [
   {
-    key: 'starter', label: 'Starter', price: 49, highlight: false,
+    key: 'starter', label: 'Starter', price: 69, highlight: false,
     desc: 'Pour démarrer votre activité',
     features: ['Gestion des dossiers clients', 'Génération de devis PDF', 'Suivi des statuts', 'Espace client de suivi', '1 admin + 1 transporteur', '14 jours d\'essai gratuit'],
   },

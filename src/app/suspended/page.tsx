@@ -32,7 +32,7 @@ export default async function SuspendedPage() {
           {hasBilling ? (
             <BillingActions mode="portal" />
           ) : (
-            <BillingActions mode="checkout" plan="starter" label="Activer mon abonnement — 49€/mois" />
+            <BillingActions mode="checkout" plan="starter" label="Activer mon abonnement — 69€/mois" />
           )}
           <p className="text-xs text-gray-400">
             Des questions ?{' '}

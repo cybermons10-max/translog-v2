@@ -7,7 +7,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export const PLANS = {
   starter: {
     label: 'Starter',
-    price: 49,
+    price: 69,
     priceId: process.env.STRIPE_PRICE_STARTER!,
     features: ['Dossiers clients', 'Devis PDF', 'Suivi statuts', 'Espace client', '1 admin + 1 transporteur'],
   },

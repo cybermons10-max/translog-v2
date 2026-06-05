@@ -4,7 +4,7 @@ import type { Tenant } from '@/types'
 import { TenantActions } from '@/components/superadmin/TenantActions'
 import { PLANS } from '@/lib/stripe'
 
-const PLAN_PRICE: Record<string, number> = { starter: 49, pro: 99, business: 149 }
+const PLAN_PRICE: Record<string, number> = { starter: 69, pro: 99, business: 149 }
 
 function statusBadge(status: string) {
   const cfg: Record<string, string> = {

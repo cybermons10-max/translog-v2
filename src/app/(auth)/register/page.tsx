@@ -11,7 +11,7 @@ import { Check } from 'lucide-react'
 const PAYS_DISPONIBLES = ['Maroc', 'Algérie', 'Tunisie', 'Sénégal', 'Mali', 'Mauritanie', "Côte d'Ivoire"]
 
 const PLANS_DISPLAY = [
-  { key: 'starter', label: 'Starter', price: 49, highlight: false, features: ['Dossiers & devis', 'Espace client', '1 admin + 1 transporteur'] },
+  { key: 'starter', label: 'Starter', price: 69, highlight: false, features: ['Dossiers & devis', 'Espace client', '1 admin + 1 transporteur'] },
   { key: 'pro',     label: 'Pro',     price: 99, highlight: true,  features: ['Tout Starter', 'GPS, SMS, Stripe', 'Multi-transporteurs'] },
   { key: 'business',label: 'Business',price: 149,highlight: false, features: ['Tout Pro', 'Multi-agences', 'Marque blanche'] },
 ]
