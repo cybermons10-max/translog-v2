@@ -22,8 +22,8 @@ export async function POST(request: Request) {
       tenant_id: tenantId,
       user_id: user.id,
       endpoint,
-      auth_key: keys.auth,
-      p256dh_key: keys.p256dh,
+      auth: keys.auth,
+      p256dh: keys.p256dh,
     }, { onConflict: 'user_id,endpoint' })
 
   if (error) {

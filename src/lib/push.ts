@@ -24,7 +24,7 @@ export async function notifyTenant(tenantId: string, payload: PushPayload) {
   const admin = createAdminClient()
   const { data: subs } = await admin
     .from('push_subscriptions')
-    .select('endpoint, auth_key, p256dh_key')
+    .select('endpoint, auth, p256dh')
     .eq('tenant_id', tenantId)
 
   if (!subs?.length) return
@@ -32,9 +32,9 @@ export async function notifyTenant(tenantId: string, payload: PushPayload) {
   const data = JSON.stringify(payload)
 
   await Promise.allSettled(
-    subs.map((sub: { endpoint: string; auth_key: string; p256dh_key: string }) =>
+    subs.map((sub: { endpoint: string; auth: string; p256dh: string }) =>
       webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { auth: sub.auth_key, p256dh: sub.p256dh_key } },
+        { endpoint: sub.endpoint, keys: { auth: sub.auth, p256dh: sub.p256dh } },
         data
       ).catch(err => {
         // Subscription expirée — on la supprime
