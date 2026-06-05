@@ -1,10 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { formatMontant, statutLabel, statutColor } from '@/lib/utils'
-import type { Dossier, Tenant } from '@/types'
+import { formatMontant, statutBadgeClass, statutLabel } from '@/lib/utils'
+import Link from 'next/link'
+import type { Dossier } from '@/types'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -14,14 +12,13 @@ export default async function DashboardPage() {
   const tenantId = user.app_metadata?.tenant_id
   if (!tenantId) redirect('/login')
 
-  const [{ data: tenant }, { data: dossiers }, { data: allDossiers }] = await Promise.all([
-    supabase.from('tenants').select('*').eq('id', tenantId).single(),
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+  const [{ data: dossiers }, { data: allDossiers }] = await Promise.all([
     supabase.from('dossiers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
     supabase.from('dossiers').select('id, statut, montant_ttc, created_at').eq('tenant_id', tenantId),
   ])
-
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const totalDossiers = allDossiers?.length ?? 0
   const dossiersEnCours = allDossiers?.filter(d => ['confirme', 'en_transit', 'arrive'].includes(d.statut)).length ?? 0
@@ -30,83 +27,64 @@ export default async function DashboardPage() {
     .reduce((sum, d) => sum + (d.montant_ttc ?? 0), 0) ?? 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {(tenant as Tenant)?.logo_url && (
-            <img src={(tenant as Tenant).logo_url!} alt="Logo" className="h-8 w-8 rounded object-cover" />
-          )}
-          <h1 className="text-xl font-bold text-gray-900">{(tenant as Tenant)?.name ?? 'Dashboard'}</h1>
-        </div>
-        <form action="/api/auth/signout" method="POST">
-          <button className="text-sm text-gray-500 hover:text-gray-700">Déconnexion</button>
-        </form>
-      </header>
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: 'Total dossiers', value: totalDossiers, color: 'text-[#1e3a5f]' },
+          { label: 'En cours', value: dossiersEnCours, color: 'text-amber-600' },
+          { label: 'Revenus ce mois', value: formatMontant(revenusMois), color: 'text-green-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{s.label}</p>
+            <p className={`text-3xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total dossiers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{totalDossiers}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">En cours</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-blue-600">{dossiersEnCours}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Revenus ce mois</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-green-600">{formatMontant(revenusMois)}</p>
-            </CardContent>
-          </Card>
+      {/* Derniers dossiers */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-[#1e3a5f]">Derniers dossiers</h2>
+          <Link href="/dashboard/dossiers" className="text-sm text-[#1e3a5f] hover:underline">
+            Voir tous →
+          </Link>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Derniers dossiers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!dossiers?.length ? (
-              <p className="text-gray-500 text-sm text-center py-8">Aucun dossier pour l'instant</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Référence</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Montant TTC</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(dossiers as Dossier[]).map(d => (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-mono text-sm">{d.reference}</TableCell>
-                      <TableCell>{d.client_nom}</TableCell>
-                      <TableCell>{d.ville_arrivee}, {d.pays_arrivee}</TableCell>
-                      <TableCell>
-                        <Badge variant={statutColor(d.statut) as any}>{statutLabel(d.statut)}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{formatMontant(d.montant_ttc)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+        {!dossiers?.length ? (
+          <div className="p-10 text-center text-gray-400 text-sm">Aucun dossier pour l'instant</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                <th className="px-6 py-3 text-left font-medium">Référence</th>
+                <th className="px-6 py-3 text-left font-medium">Client</th>
+                <th className="px-6 py-3 text-left font-medium">Destination</th>
+                <th className="px-6 py-3 text-left font-medium">Statut</th>
+                <th className="px-6 py-3 text-right font-medium">TTC</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {(dossiers as Dossier[]).map(d => (
+                <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-3.5">
+                    <Link href={`/dashboard/dossiers/${d.id}`} className="font-mono text-sm text-[#1e3a5f] hover:underline">
+                      {d.reference}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-3.5 text-sm text-gray-800">{d.client_nom}</td>
+                  <td className="px-6 py-3.5 text-sm text-gray-600">{d.ville_arrivee}, {d.pays_arrivee}</td>
+                  <td className="px-6 py-3.5">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statutBadgeClass(d.statut)}`}>
+                      {statutLabel(d.statut)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3.5 text-sm text-right font-medium">{formatMontant(d.montant_ttc)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   )
 }

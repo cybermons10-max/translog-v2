@@ -53,6 +53,19 @@ export interface Dossier {
   updated_at: string
 }
 
+export interface Tarif {
+  id: string
+  tenant_id: string
+  type_colis: string
+  poids_min_kg: number
+  poids_max_kg: number | null
+  prix_base: number
+  prix_par_kg: number
+  pays_arrivee: string | null
+  actif: boolean
+  created_at: string
+}
+
 export interface AppMetadata {
   role: Role
   tenant_id?: string
@@ -60,3 +73,25 @@ export interface AppMetadata {
   trial_ends_at?: string
   plan?: Plan
 }
+
+export const STATUT_CONFIG: Record<DossierStatut, { label: string; bg: string; text: string; ring: string }> = {
+  recu:       { label: 'Reçu',        bg: 'bg-gray-100',   text: 'text-gray-700',   ring: 'ring-gray-300' },
+  confirme:   { label: 'Confirmé',    bg: 'bg-blue-100',   text: 'text-blue-700',   ring: 'ring-blue-300' },
+  en_transit: { label: 'En transit',  bg: 'bg-amber-100',  text: 'text-amber-700',  ring: 'ring-amber-300' },
+  arrive:     { label: 'Arrivé',      bg: 'bg-purple-100', text: 'text-purple-700', ring: 'ring-purple-300' },
+  livre:      { label: 'Livré',       bg: 'bg-green-100',  text: 'text-green-700',  ring: 'ring-green-300' },
+  annule:     { label: 'Annulé',      bg: 'bg-red-100',    text: 'text-red-700',    ring: 'ring-red-300' },
+}
+
+export const STATUT_ORDER: DossierStatut[] = ['recu', 'confirme', 'en_transit', 'arrive', 'livre']
+
+export const TYPE_COLIS_OPTIONS = [
+  { value: 'petit',        label: 'Petit colis (< 5 kg)' },
+  { value: 'moyen',        label: 'Colis moyen (5–20 kg)' },
+  { value: 'volumineux',   label: 'Colis volumineux (20–50 kg)' },
+  { value: 'electromenager', label: 'Électroménager (> 50 kg)' },
+]
+
+export const PAYS_OPTIONS = [
+  'Maroc', 'Algérie', 'Tunisie', 'Sénégal', 'Mali', 'Mauritanie', "Côte d'Ivoire"
+]
