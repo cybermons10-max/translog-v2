@@ -2,22 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FolderOpen, Tag, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Tag, Settings, LogOut, CreditCard } from 'lucide-react'
 
 interface Props {
   children: React.ReactNode
   tenantName: string
   logoUrl?: string | null
+  subscriptionStatus?: string
 }
 
 const NAV = [
   { href: '/dashboard',          label: 'Tableau de bord', icon: LayoutDashboard },
   { href: '/dashboard/dossiers', label: 'Dossiers',        icon: FolderOpen },
   { href: '/dashboard/tarifs',   label: 'Tarifs',          icon: Tag },
+  { href: '/dashboard/billing',  label: 'Abonnement',      icon: CreditCard },
   { href: '/dashboard/settings', label: 'Paramètres',      icon: Settings },
 ]
 
-export function DashboardLayout({ children, tenantName, logoUrl }: Props) {
+export function DashboardLayout({ children, tenantName, logoUrl, subscriptionStatus }: Props) {
   const pathname = usePathname()
 
   return (
