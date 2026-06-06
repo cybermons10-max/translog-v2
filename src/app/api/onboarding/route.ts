@@ -75,13 +75,15 @@ export async function POST(request: Request) {
     }
 
     // Email de bienvenue (fire-and-forget)
-    try { sendWelcomeTransporteur({
-      adminEmail: email,
-      adminNom: company_name,
-      tenantName: company_name,
-      plan: 'starter',
-      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
-    })
+    try {
+      sendWelcomeTransporteur({
+        adminEmail: email,
+        adminNom: company_name,
+        tenantName: company_name,
+        plan: 'starter',
+        appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://translog-v2.vercel.app',
+      })
+    } catch(e) { console.error('Welcome email error:', e) }
 
     return NextResponse.json({ success: true })
   } catch (err) {
