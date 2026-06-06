@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     // Email de bienvenue (fire-and-forget)
-    sendWelcomeTransporteur({
+    try { sendWelcomeTransporteur({
       adminEmail: email,
       adminNom: company_name,
       tenantName: company_name,
